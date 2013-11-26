@@ -11,67 +11,72 @@
 ##$!{cb.colComment}字段注释，如：姓名全称
 ##$!{cb.colName}字段列名，如：full_name
 #set($conf=$!{tbb.conf})
+#set($bigDecimal=false)
+#set($Date=false)
 package $!{gb.packageName}.query;
 
-import java.util.*
-
+#foreach($cb in $tbb.colList)
+    #if($!{cb.propertyType}=="Clob"&&!$clob)
+    import java.sql.Clob;
+        #set($clob=true)
+    #elseif($!{cb.propertyType}=="Blob"&&!$blob)
+    import java.sql.Blob;
+        #set($blob=true)
+    #elseif($!{cb.propertyType}=="Date"&&$!Date)
+    import java.util.Date;
+        #set($Date=true)
+    #elseif($!{cb.propertyType}=="BigDecimal"&&!$bigDecimal)
+    import java.math.BigDecimal;
+        #set($bigDecimal=true)
+    #end
+#end
+import java.util.*;
 /**
  *
  * @author $!{gb.userName}
  */
 public class $!{tbb.className}Query extends BaseQuery {
 
-	/** ====================查询唯一单条记录使用==========================**/
-
 	/**==============================批量查询、更新、删除时的Where条件设置==================================**/
-#if($conf.queryCol.size()>0)
-	#foreach($col in $conf.queryCol)
-	#if($tbb.colMap.get($col))
-	#set($cb = $tbb.colMap.get($col))
-	#if($!{cb.propertyType}=="String"||$!{cb.propertyType}=="Long"||$!{cb.propertyType}=="Integer")
-	/** $!{cb.colComment} **/
-    private $!{cb.propertyType} $!{cb.propertyName};
-	/**
-    * 获取属性:$!{cb.propertyName}
-    * @return $!{cb.propertyName} $!{cb.colComment}
-    */
-	public $!{cb.propertyType} get$!{cb.methodName} () {
-    	return $!{cb.propertyName};
-   	}
-   	/**
-     * 设置属性:$!{cb.propertyName}
-     * @param $!{cb.propertyName} $!{cb.colComment}
-     */
-    public $!{tbb.className}Query set$!{cb.methodName}($!{cb.propertyType} $!{cb.propertyName}) {
-    	this.$!{cb.propertyName} = $!{cb.propertyName};
-    	return this;
-    }
-#end
-	#end
-	#end
-#else	
 #foreach($cb in $tbb.colList)
-#if($!{cb.propertyType}=="String"||$!{cb.propertyType}=="Long"||$!{cb.propertyType}=="Integer")
+#if($!{cb.propertyType}!="Date")
 	/** $!{cb.colComment} **/
     private $!{cb.propertyType} $!{cb.propertyName};
-	/**
-    * 获取属性:$!{cb.propertyName}
-    * $!{cb.colComment}
-    * @return $!{cb.propertyName}
-    */
 	public $!{cb.propertyType} get$!{cb.methodName} () {
     	return $!{cb.propertyName};
    	}
-   	/**
-     * 设置属性:$!{cb.propertyName}
-     * $!{cb.colComment}
-     * @param $!{cb.propertyName}
-     */
     public $!{tbb.className}Query set$!{cb.methodName}($!{cb.propertyType} $!{cb.propertyName}) {
     	this.$!{cb.propertyName} = $!{cb.propertyName};
     	return this;
     }
-#end
+#elseif(${cb.colName}!=${conf.addField} && ${cb.colName}!=${conf.updField})
+    /** $!{cb.colComment} **/
+    private $!{cb.propertyType} $!{cb.propertyName}Start;
+    public $!{cb.propertyType} get$!{cb.methodName}Start () {
+        return $!{cb.propertyName}Start;
+    }
+    public $!{tbb.className}Query set$!{cb.methodName}Start($!{cb.propertyType} $!{cb.propertyName}) {
+        this.$!{cb.propertyName}Start = $!{cb.propertyName};
+        return this;
+    }
+
+    private $!{cb.propertyType} $!{cb.propertyName}End;
+    public $!{cb.propertyType} get$!{cb.methodName}End () {
+        return $!{cb.propertyName}End;
+    }
+    public $!{tbb.className}Query set$!{cb.methodName}End($!{cb.propertyType} $!{cb.propertyName}) {
+        this.$!{cb.propertyName}End = $!{cb.propertyName};
+        return this;
+    }
+
+    private $!{cb.propertyType} $!{cb.propertyName}Equal;
+    public $!{cb.propertyType} get$!{cb.methodName}Equal () {
+        return $!{cb.propertyName}Equal;
+    }
+    public $!{tbb.className}Query set$!{cb.methodName}Equal($!{cb.propertyType} $!{cb.propertyName}) {
+        this.$!{cb.propertyName}Equal = $!{cb.propertyName};
+        return this;
+    }
 #end
 #end
 	/**==============================批量查询时的Order条件顺序设置==================================**/
@@ -128,6 +133,21 @@ public class $!{tbb.className}Query extends BaseQuery {
 	}
 #end
 #end
+#if($conf.isSplitTable())
+    /**
+    * 分表使用
+    */
+    private String tableId;
+
+    public String getTableId() {
+        return tableId;
+    }
+
+    public $!{tbb.className}Query setTableId(String tableId) {
+        this.tableId = tableId;
+        return this;
+    }
+#end
 #if($conf.isCustomField())
     private String fields;
     /**
@@ -139,7 +159,7 @@ public class $!{tbb.className}Query extends BaseQuery {
         if (fieldMap == null){
             fieldMap =new HashMap<String,String>();
         #foreach($cb in $tbb.colList)
-            fieldMap.put("$!{cb.colName.trim()}", "$!{cb.propertyName.trim()}");
+            fieldMap.put("$!{cb.colNameCheck}", "$!{cb.propertyName.trim()}");
         #end
         }
         return fieldMap;
@@ -148,19 +168,23 @@ public class $!{tbb.className}Query extends BaseQuery {
     public String getFields(){
         return this.fields;
     }
-    public void  setFields(String fields){
+    public $!{tbb.className}Query  setFields(String fields){
         String[] array = fields.split(",");
         StringBuffer buffer = new StringBuffer();
         for (String field : array){
             if(getFieldSet().containsKey(field)){
                 buffer.append(field).append(" as ").append(getFieldSet().get(field)).append(" ,");
             }
+            if(getFieldSet().containsKey("`"+field+"`")){
+                buffer.append("`"+field+"`").append(" as ").append(getFieldSet().get(field)).append(" ,");
+            }
         }
         if (buffer.length() != 0){
             this.fields = buffer.substring(0, buffer.length() - 1);
         }else{
-            this.fields = "";
+            this.fields = " 1 ";//没有一个参数可能会报错
         }
+        return this;
     }
 #end
 }
